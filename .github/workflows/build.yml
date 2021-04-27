@@ -1,0 +1,39 @@
+name: Tensorflow Builds
+
+on:
+  push:
+    tags:
+      - v*.*.*
+      
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8.9
+      - name: Get Push Type
+        id: get_version
+        run: echo ::set-output name=VERSION::$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+        
+      - name: Clone Tensorflow git
+        run: git clone https://github.com/tensorflow/tensorflow tflow
+        
+      - name: Set Version and build
+        run: |
+          cd tflow && git checkout ${{ steps.get_version.outputs.VERSION }}
+          tensorflow/tools/ci_build/ci_build.sh PI-PYTHON38 \
+            tensorflow/tools/ci_build/pi/build_raspberry_pi.sh AARCH64
+        
+      - name : Upload Built Files for Latest Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: TensorFlow AARCH64 Build Python3.8 ${{ steps.get_version.outputs.VERSION }}
+          files: |
+            tflow/output-artifacts/*.whl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
